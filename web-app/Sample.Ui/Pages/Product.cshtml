@@ -1,0 +1,38 @@
+﻿@page "{id:int=0}"
+@model Sample.Ui.Pages.ProductModel
+@{
+    ViewData["Title"] = "Product";
+    var product = Model.Product ?? new Services.Product();
+}
+
+<div class="lead">@(product.Id == 0 ? "Add New Product" : "Update Product")</div>
+<div class="p-3"></div>
+<form method="post">
+    <div class="container">
+        @if (product.Id != 0)
+        {
+           <div class="row">
+                <div class="col-1"><span>ID:</span></div>
+                <div class="col-1"><span>@product.Id</span></div>
+                <input type="hidden" value="@product.Id" />
+            </div>
+        }
+        <div class="row">
+            <div class="col-1"><span>Name:</span></div>
+            <div class="col-2"><input type="text" name="Name" value="@product.Name"></div>
+        </div>
+        <div class="row">
+            <div class="col-1"><span>Description:</span></div>
+            <div class="col-3"><input type="text" name="Description" value="@product.Description"></div>
+        </div>
+        <div class="row">
+            <div class="col-1"><span>Category:</span></div>
+            <div class="col-2"><input type="text" name="Category" value="@product.Category"></div>
+        </div>
+        <div class="row">
+            <div class="col-1"><span></span></div>
+            <div class="col-2"><input type="submit" /></div>
+        </div>
+    </div>
+</form>
+

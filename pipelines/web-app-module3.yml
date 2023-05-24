@@ -1,0 +1,74 @@
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - web-app
+    - pipelines/web-app-module3.yml
+    - pipelines/templates
+
+variables:
+  - name: buildConfiguration 
+    value: Release
+  - name: workingDirectory
+    value: ./web-app
+  - name: prefix
+    value: dotnet-vbd-m3-$(uniqueId) #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: serviceConnectionName
+    value: dotnet-vbd-sc #CHANGE ME or delete me and get from dotnet-vbd library
+  - group: dotnet-vbd
+
+stages:
+  - stage: ci
+    displayName: Continuous Integration
+    jobs: 
+    - job: build
+      displayName: Build, Test and Publish
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+      - template: templates/build-test-publish-template.yaml
+        parameters: 
+          buildConfiguration: $(buildConfiguration)
+          workingDirectory: $(workingDirectory)
+          webAppFolder: "Sample.Ui"
+
+      - task: PublishPipelineArtifact@1
+        displayName: Publish Artifact
+        inputs:
+          targetPath: '$(Build.ArtifactStagingDirectory)'
+          artifact: 'web-app'
+          publishLocation: 'pipeline'
+         
+  - stage: deploy_to_dev
+    displayName: Deploy to Dev
+    dependsOn: ci
+    jobs:                   
+      - deployment: deploy_to_dev
+        displayName: Deploy UI to Dev
+        environment: dev
+        pool:
+          vmImage: 'ubuntu-latest'
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+                - download: none
+                - task: DownloadPipelineArtifact@2
+                  displayName: Download the API Application Code
+                  inputs:
+                    buildType: 'current'
+                    artifactName: 'web-app'
+                    itemPattern: '**/*.zip'
+                    targetPath: '$(System.ArtifactsDirectory)'
+                - task: AzureWebApp@1
+                  displayName: Publish to App Service
+                  inputs:
+                    azureSubscription: $(serviceConnectionName)
+                    appType: 'webAppLinux'
+                    appName: '$(prefix)-web-app'
+                    package: '$(System.ArtifactsDirectory)/**/*.zip'
+                    runtimeStack: 'DOTNETCORE|7.0'
+        
+        

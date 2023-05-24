@@ -1,0 +1,169 @@
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - api-app
+    - pipelines/api-app-module5.yml
+    - pipelines/templates
+
+variables:
+  - name: buildConfiguration 
+    value: Release
+  - name: workingDirectory
+    value: ./api-app
+  - name: prefix
+    value: dotnet-vbd-m5-$(uniqueId) #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: resourceGroupName
+    value: dotnet-vbd-module5 #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: serviceConnectionName
+    value: dotnet-vbd-sc #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: agentPoolName
+    value: dotnet-vbd #CHANGE ME or delete me and get from dotnet-vbd library
+  - group: dotnet-vbd
+
+stages:
+  - stage: ci
+    displayName: Continuous Integration
+    jobs: 
+    - job: build
+      displayName: Build, Test and Publish
+      pool:
+        vmImage: 'ubuntu-latest'
+        
+      steps:
+      - template: templates/build-test-publish-template.yaml
+        parameters: 
+          buildConfiguration: $(buildConfiguration)
+          workingDirectory: $(workingDirectory)
+          webAppFolder: "Sample.Api"
+
+      - task: DotNetCoreCLI@2
+        displayName: Install Entity Framework Tools
+        inputs:
+          command: 'custom'
+          custom: 'tool'
+          arguments: 'install -g dotnet-ef'
+
+      - pwsh: |
+            dotnet ef migrations script --idempotent --project Sample.Api -o "$(Build.ArtifactStagingDirectory)/migrations.sql"
+        displayName: Generate and Save Idempotent SQL Script
+        workingDirectory: $(workingDirectory)
+
+      - task: PublishPipelineArtifact@1
+        displayName: Publish Artifact
+        inputs:
+          targetPath: '$(Build.ArtifactStagingDirectory)'
+          artifact: 'api-app'
+          publishLocation: 'pipeline'
+         
+  - stage: deploy_to_dev
+    displayName: Deploy to Dev
+    dependsOn: ci
+    jobs:
+      - deployment: deploy_database
+        displayName: Deploy Database Updates to Dev
+        environment: dev
+        pool: 
+          name: $(agentPoolName)
+          demands: RESOURCE_GROUP -equals $(resourceGroupName)
+
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+                - download: none
+
+                - task: DownloadPipelineArtifact@2
+                  displayName: Download the SQL Script
+                  inputs:
+                    buildType: 'current'
+                    artifactName: 'api-app'
+                    itemPattern: '**/*.sql'
+                    targetPath: '$(System.ArtifactsDirectory)'
+
+                - task: AzureCLI@2
+                  displayName: Run Idempotent SQL Script to Deploy to Database and Add Web App User
+                  inputs:
+                    azureSubscription: $(serviceConnectionName)
+                    scriptType: 'pscore'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+
+                        # If you are using a Microsoft Hosted Agent, you could do something like this to open the SQL firewall
+                        # $currentIP = (Invoke-RestMethod https://api.ipify.org/?format=json).ip
+                        # az sql server update -g $(resourceGroupName) -n $(prefix)-sql-server --enable-public-network true
+                        # az sql server firewall-rule create -g $(resourceGroupName) -s $(prefix)-sql-server -n "TempAgentIp" --start-ip-address $currentIP --end-ip-address $currentIP
+                        
+                        # Get the Access Token of the Service Principal or Managed Identity
+                        $accessToken = $(az account get-access-token --resource=https://database.windows.net/ --query accessToken -o tsv)
+
+                        # Create or Update the Database Schema and Seed Data
+                        Write-Host "Creating and seeding the SQL Database"
+
+                        Install-Module -Name SqlServer -Force -Scope CurrentUser
+                        Invoke-Sqlcmd -InputFile "$(Build.ArtifactStagingDirectory)/migrations.sql" -ServerInstance "$(prefix)-sql-server.database.windows.net" -Database "$(prefix)-db" -AccessToken $accessToken
+                        
+                        # Create a user account for the Managed Identity of the API App Service
+                        Write-Host "Granting User Access to the SQL Database"
+                        $conn = New-Object System.Data.SqlClient.SQLConnection 
+                        $conn.ConnectionString = 'Server=tcp:$(prefix)-sql-server.database.windows.net,1433;Database=$(prefix)-db;Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;'
+                        $conn.AccessToken = $accessToken
+
+                        $apiAppUsername = "$(prefix)-api-app"
+
+                        $query = "IF NOT EXISTS (SELECT name FROM [sys].[database_principals] WHERE name = N'$apiAppUsername') Begin CREATE USER [$apiAppUsername] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [$apiAppUsername]; ALTER ROLE db_datawriter ADD MEMBER [$apiAppUsername]; ALTER ROLE db_ddladmin ADD MEMBER [$apiAppUsername]; End"
+                        Write-Host "Connecting to SQL"
+                        
+                        while($conn.State -ne "Open")
+                        {
+                          try
+                          {
+                            $conn.Open()
+                          }
+                          catch
+                          {
+                            Write-Host "Waiting for SQL to be ready"
+                            Start-Sleep -Seconds 5
+                          }
+                        } 
+                        $command = New-Object -TypeName System.Data.SqlClient.SqlCommand($query, $conn)
+                        Write-Host "Running SQL Script"
+                        $Result = $command.ExecuteNonQuery()
+                        $conn.Close() 
+                        Write-Host "All Done"
+
+                        # And then close the SQL firewall
+                        # az sql server firewall-rule delete -g $(resourceGroupName) -s $(prefix)-sql-server -n "TempAgentIp"
+                        # az sql server update -g $(resourceGroupName) -n $(prefix)-sql-server --enable-public-network false
+                      
+      - deployment: deploy_to_dev
+        displayName: Deploy API to Dev
+        environment: dev
+        pool: 
+          name: $(agentPoolName)
+          demands: RESOURCE_GROUP -equals $(resourceGroupName)
+
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+                - download: none
+                - task: DownloadPipelineArtifact@2
+                  displayName: Download the API Application Code
+                  inputs:
+                    buildType: 'current'
+                    artifactName: 'api-app'
+                    itemPattern: '**/*.zip'
+                    targetPath: '$(System.ArtifactsDirectory)'
+                - task: AzureWebApp@1
+                  displayName: Publish to App Service
+                  inputs:
+                    azureSubscription: $(serviceConnectionName)
+                    appType: 'webAppLinux'
+                    appName: '$(prefix)-api-app'
+                    package: '$(System.ArtifactsDirectory)/**/*.zip'
+                    runtimeStack: 'DOTNETCORE|7.0'
+        
+        

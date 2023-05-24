@@ -1,0 +1,118 @@
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - api-app
+    - pipelines/api-app-module2.yml
+    - pipelines/templates
+
+variables:
+  - name: buildConfiguration 
+    value: Release
+  - name: workingDirectory
+    value: ./api-app
+  - name: prefix
+    value: dotnet-vbd-m2-$(uniqueId) #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: resourceGroupName
+    value: dotnet-vbd-module2 #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: serviceConnectionName
+    value: dotnet-vbd-sc #CHANGE ME or delete me and get from dotnet-vbd library
+  - group: dotnet-vbd
+
+stages:
+  - stage: ci
+    displayName: Continuous Integration
+    jobs: 
+    - job: build
+      displayName: Build, Test and Publish
+      pool:
+        vmImage: 'ubuntu-latest'
+        
+      steps:
+      - template: templates/build-test-publish-template.yaml
+        parameters: 
+          buildConfiguration: $(buildConfiguration)
+          workingDirectory: $(workingDirectory)
+          webAppFolder: "Sample.Api"
+
+      - task: DotNetCoreCLI@2
+        displayName: Install Entity Framework Tools
+        inputs:
+          command: 'custom'
+          custom: 'tool'
+          arguments: 'install -g dotnet-ef'
+
+      - pwsh: |
+            dotnet ef migrations script --idempotent --project Sample.Api -o "$(Build.ArtifactStagingDirectory)/migrations.sql"
+        displayName: Generate and Save Idempotent SQL Script
+        workingDirectory: $(workingDirectory)
+
+      - task: PublishPipelineArtifact@1
+        displayName: Publish Artifact
+        inputs:
+          targetPath: '$(Build.ArtifactStagingDirectory)'
+          artifact: 'api-app'
+          publishLocation: 'pipeline'
+         
+  - stage: deploy_to_dev
+    displayName: Deploy to Dev
+    dependsOn: ci
+    jobs:
+      - deployment: deploy_database
+        displayName: Deploy Database Updates to Dev
+        environment: dev
+        pool:
+          vmImage: 'ubuntu-latest'
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+                - download: none
+
+                - task: DownloadPipelineArtifact@2
+                  displayName: Download the SQL Script
+                  inputs:
+                    buildType: 'current'
+                    artifactName: 'api-app'
+                    itemPattern: '**/*.sql'
+                    targetPath: '$(System.ArtifactsDirectory)'
+
+                - task: AzureCLI@2
+                  displayName: Run Idempotent SQL Script to Deploy to Database
+                  inputs:
+                    azureSubscription: $(serviceConnectionName)
+                    scriptType: 'pscore'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                        Install-Module -Name SqlServer -Force -Scope CurrentUser
+                        Invoke-Sqlcmd -InputFile "$(Build.ArtifactStagingDirectory)/migrations.sql" -ServerInstance "$(prefix)-sql-server.database.windows.net" -Database "$(prefix)-db" -Username "$(sqlAdminUsername)" -Password "$(SqlAdminPassword)"
+                      
+      - deployment: deploy_to_dev
+        displayName: Deploy API to Dev
+        environment: dev
+        pool:
+          vmImage: 'ubuntu-latest'
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+                - download: none
+                - task: DownloadPipelineArtifact@2
+                  displayName: Download the API Application Code
+                  inputs:
+                    buildType: 'current'
+                    artifactName: 'api-app'
+                    itemPattern: '**/*.zip'
+                    targetPath: '$(System.ArtifactsDirectory)'
+                - task: AzureWebApp@1
+                  displayName: Publish to App Service
+                  inputs:
+                    azureSubscription: $(serviceConnectionName)
+                    appType: 'webAppLinux'
+                    appName: '$(prefix)-api-app'
+                    package: '$(System.ArtifactsDirectory)/**/*.zip'
+                    runtimeStack: 'DOTNETCORE|7.0'
+        
+        

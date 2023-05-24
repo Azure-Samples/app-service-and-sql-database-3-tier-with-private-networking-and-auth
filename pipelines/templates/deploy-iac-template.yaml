@@ -1,0 +1,75 @@
+parameters:
+- name: serviceConnectionName
+  type: string 
+- name: prefix
+  type: string
+- name: webAppUserEmail
+  type: string
+- name: resourceGroupName
+  type: string
+- name: location
+  type: string
+- name: agentPoolName
+  type: string
+- name: sqlAdminObjectId
+  type: string
+
+steps:
+- download: none
+- checkout: self
+- task: AzureCLI@2
+  displayName: Create App Registrations for App Service Auth
+  inputs:
+    azureSubscription: ${{ parameters.serviceConnectionName }}
+    scriptType: 'pscore'
+    scriptLocation: 'scriptPath'
+    scriptPath: './scripts/create-app-registrations.ps1'
+    arguments: '-apiAppAuthRegistrationName "${{ parameters.prefix }}-api-app-auth" -webAppAuthRegistrationName "${{ parameters.prefix }}-web-app-auth" -apiAppRedirectUri "https://${{ parameters.prefix }}-api-app.azurewebsites.net/.auth/login/aad/callback" -webAppRedirectUri "https://${{ parameters.prefix }}-web-app.azurewebsites.net/.auth/login/aad/callback" -webAppUser "${{ parameters.webAppUserEmail }}"'
+- task: AzureCLI@2
+  displayName: Create SQL Server User Assigned Managed Identity and Assign Permissions
+  inputs:
+    azureSubscription: ${{ parameters.serviceConnectionName }}
+    scriptType: 'pscore'
+    scriptLocation: 'scriptPath'
+    scriptPath: './scripts/create-user-assigneed-managed-identity-for-sql.ps1'
+    arguments: '-resourceGroupName "${{ parameters.resourceGroupName }}" -managedIdentityName "${{ parameters.prefix }}-sql-server"'
+- task: AzureCLI@2
+  displayName: Check to see if SQL has already been deployed
+  inputs:
+    azureSubscription: 'dotnet-vbd-sc'
+    scriptType: 'pscore'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      $sqlServer = az sql server list --resource-group "${{ parameters.resourceGroupName }}" | ConvertFrom-Json
+      $sqlExists = "false"
+      if($sqlServer -ne $null)
+      {
+        Write-Host "SQL Server already exists"
+        $sqlExists = "true"
+      }
+      else
+      {
+        Write-Host "SQL Server does not exist"
+      }
+      Write-Host "##vso[task.setvariable variable=sqlExists;]$sqlExists"
+- task: AzureResourceManagerTemplateDeployment@3
+  displayName: Deploy with Bicep
+  inputs:
+    deploymentScope: 'Resource Group'
+    azureResourceManagerConnection: ${{ parameters.serviceConnectionName }}
+    action: 'Create Or Update Resource Group'
+    resourceGroupName: ${{ parameters.resourceGroupName }}
+    location: ${{ parameters.location }}
+    templateLocation: 'Linked artifact'
+    csmFile: './bicep/module5.bicep' 
+    overrideParameters: '-apiAuthAppClientId "$(api-app-clientId)" -webAuthAppClientId "$(web-app-clientId)" -apiAuthAppSecret "$(api-app-password)" -webAuthAppSecret "$(web-app-password)" -prefix "${{ parameters.prefix }}" -sqlAdminObjectId "${{ parameters.sqlAdminObjectId }}" -azureDevOpsToken "$(System.AccessToken)" -azureDevOpsUrl "$(System.CollectionUri)" -azureDevOpsAgentPool "${{ parameters.agentPoolName }}" -sqlExists $(sqlExists)'
+    deploymentMode: 'Incremental'
+    deploymentName: ${{ parameters.prefix }}
+- task: AzureCLI@2
+  displayName: Assign Web App Managed Identity and App Role Permissions for Api App
+  inputs:
+    azureSubscription: ${{ parameters.serviceConnectionName }}
+    scriptType: 'pscore'
+    scriptLocation: 'scriptPath'
+    scriptPath: './scripts/assign-managed-identity-api-access.ps1'
+    arguments: '-managedIdentityName "${{ parameters.prefix }}-web-app" -appRegistrationName "${{ parameters.prefix }}-api-app-auth" -appRoleName "Api.Read.Write"'

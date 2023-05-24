@@ -1,0 +1,32 @@
+﻿@page
+@model Sample.Ui.Pages.ProductsModel
+@{
+    ViewData["Title"] = "Products";
+}
+
+<div class="lead">Product List</div>
+<div class="p-3"></div>
+
+<div class="container">
+    <div class="row fw-bold">
+        <div class="col-1"><span>ID</span></div>
+        <div class="col-2"><span>Name</span></div>
+        <div class="col-3"><span>Description</span></div>
+        <div class="col-2"><span>Category</span></div>
+        <div class="col-1"><span>Action</span></div>
+    </div>
+    @foreach(var product in Model.Products ?? new List<Services.Product>())
+    {
+        <div class="row">
+            <div class="col-1"><span>@product.Id</span></div>
+            <div class="col-2"><span>@product.Name</span></div>
+            <div class="col-3"><span>@product.Description</span></div>
+            <div class="col-2"><span>@product.Category</span></div>
+            <div class="col-1">
+                <a href="/Product/@product.Id">Open</a>
+             </div>
+        </div>
+    }
+</div>
+<div class="p-3"></div>
+<a href="/Product">Add New Product</a>

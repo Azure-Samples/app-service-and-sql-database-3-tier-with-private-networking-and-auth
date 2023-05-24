@@ -1,0 +1,42 @@
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - bicep/modules
+    - bicep/module2.bicep
+    - pipelines/iac-module2.yml
+
+name: IaC Module 2
+
+variables:
+  - name: prefix
+    value: dotnet-vbd-m2-$(uniqueId) #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: resourceGroupName
+    value: dotnet-vbd-module2 #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: serviceConnectionName
+    value: dotnet-vbd-sc #CHANGE ME or delete me and get from dotnet-vbd library
+  - group: dotnet-vbd
+  # You must create a Library variable group called dotnet-vbd and put the following variables in it for this pipeline to succeed.
+  # You must declare a variable for uniqueId. This is used to ensure there are no collisions for global services, whilst still being deterministic
+  # You must declare variables for sqlAdminUsername and sqlAdminPassword. You can use pipeline variables or add a variable group
+  # You must declare  variable for location, which is a valid Azure region, such as UK South
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: AzureResourceManagerTemplateDeployment@3
+  displayName: Deploy with Bicep
+  inputs:
+    deploymentScope: 'Resource Group'
+    azureResourceManagerConnection: $(serviceConnectionName)
+    action: 'Create Or Update Resource Group'
+    resourceGroupName: $(resourceGroupName)
+    location: $(location)
+    templateLocation: 'Linked artifact'
+    csmFile: './bicep/module2.bicep' 
+    overrideParameters: '-prefix "$(prefix)" -sqlAdministratorLogin "$(sqlAdminUsername)" -sqlAdministratorLoginPassword "$(sqlAdminPassword)"'
+    deploymentMode: 'Incremental'
+    deploymentName: '$(prefix)'

@@ -1,0 +1,96 @@
+﻿@page
+@model PrivacyModel
+@{
+    ViewData["Title"] = "Privacy Policy";
+    var claimPrincipal = Services.ClaimsPrincipalParser.Parse(Request);
+}
+
+<div class="text-center">
+    <h1 class="display-4">Auth Details For @(claimPrincipal?.Identity?.Name ?? "<Not Authenticated!>")</h1>
+</div>
+
+<div class="text-center">
+    <p>
+        <span class="text-dark">Name:</span>
+        <span class="text-body">
+            @(claimPrincipal?.Identity?.Name ?? "Not Logged in with Easy Auth")
+        </span>
+        @foreach (var claim in claimPrincipal?.Claims ?? new List<System.Security.Claims.Claim>())
+        {
+            <div>
+                <span>@claim.Type: </span>
+                <span>@claim.Value</span>
+            </div>
+        }
+    </p>
+</div>
+
+<div class="text-center">
+    <p>
+        <span class="text-dark">X-MS-CLIENT-PRINCIPAL:</span>
+        <span class="text-body">
+            @Request.Headers["X-MS-CLIENT-PRINCIPAL"]
+        </span>
+    </p>
+</div>
+<div class="text-center">
+    <p>
+        <span class="text-dark">X-MS-CLIENT-PRINCIPAL-ID:</span>
+        <span class="text-body">
+            @Request.Headers["X-MS-CLIENT-PRINCIPAL-ID"]
+        </span>
+    </p>
+</div>
+<div class="text-center">
+    <p>
+        <span class="text-dark">X-MS-CLIENT-PRINCIPAL-NAME:</span>
+        <span class="text-body">
+            @Request.Headers["X-MS-CLIENT-PRINCIPAL-NAME"]
+        </span>
+    </p>
+</div>
+<div class="text-center">
+    <p>
+        <span class="text-dark">X-MS-CLIENT-PRINCIPAL-IDP:</span>
+        <span class="text-body">
+            @Request.Headers["X-MS-CLIENT-PRINCIPAL-IDP"]
+        </span>
+    </p>
+</div>
+<div class="text-center">
+    <p>
+        <span class="text-dark">X-MS-TOKEN-AAD-ACCESS-TOKEN:</span>
+        <span class="text-body">
+            @Request.Headers["X-MS-TOKEN-AAD-ACCESS-TOKEN"]
+        </span>
+    </p>
+</div>
+<div class="text-center">
+    <p>
+        <span class="text-dark">X-MS-TOKEN-AAD-ID-TOKEN:</span>
+        <span class="text-body">
+            @Request.Headers["X-MS-TOKEN-AAD-ID-TOKEN"]
+        </span>
+    </p>
+</div>
+<div class="text-center">
+    <p>
+        <span class="text-dark">API MSI Access Token:</span>
+        <span class="text-body">
+            @{
+                var targetAppUri = new Services.ApiConfigService().Get(Services.ApiConfigType.ApiAuthUri);
+                var accessToken = string.Empty;
+                if (targetAppUri != null)
+                {
+                    accessToken = Services.ProductService.GetTokenAsync(targetAppUri).Result;
+                }
+            }
+            @accessToken
+        </span>
+    </p>
+</div>
+
+
+
+
+

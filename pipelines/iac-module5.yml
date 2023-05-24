@@ -1,0 +1,42 @@
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - bicep/modules
+    - bicep/module5.bicep
+    - pipelines/iac-module5.yml
+    - pipelines/templates
+    - scripts
+
+name: IaC Module 5
+
+variables:
+  - name: prefix
+    value: dotnet-vbd-m5-$(uniqueId) #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: resourceGroupName
+    value: dotnet-vbd-module5 #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: serviceConnectionName
+    value: dotnet-vbd-sc #CHANGE ME or delete me and get from dotnet-vbd library
+  - name: agentPoolName
+    value: dotnet-vbd #CHANGE ME or delete me and get from dotnet-vbd library
+  - group: dotnet-vbd
+  # You must create a Library variable group called dotnet-vbd and put the following variables in it for this pipeline to succeed.
+  # You must declare a variable for uniqueId. This is used to ensure there are no collisions for global services, whilst still being deterministic
+  # You must declare variables for sqlAdminObjectId, which needs to the Service Principal Object Id used for the Service Connection here. 
+  # You must declare variables for webAppUserEmail, which needs to the email address of the user in Azure AD who will be able to access the web app.
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- template: templates/deploy-iac-template.yaml
+  parameters:
+    serviceConnectionName: $(serviceConnectionName)
+    prefix: $(prefix)
+    webAppUserEmail: $(webAppUserEmail)
+    resourceGroupName: $(resourceGroupName)
+    location: $(location)
+    agentPoolName: $(agentPoolName)
+    sqlAdminObjectId: $(sqlAdminObjectId)

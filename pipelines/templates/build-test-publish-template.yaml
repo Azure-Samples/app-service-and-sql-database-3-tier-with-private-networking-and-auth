@@ -1,0 +1,38 @@
+parameters:
+- name: buildConfiguration
+  type: string
+- name: workingDirectory
+  type: string 
+- name: webAppFolder
+  type: string
+
+steps:
+- task: DotNetCoreCLI@2
+  displayName: Run dotnet restore
+  inputs:
+    command: 'restore'
+    projects: '${{ parameters.workingDirectory }}'      
+
+- task: DotNetCoreCLI@2
+  displayName: Run dotnet build
+  inputs:
+    command: 'build'
+    arguments: '--no-restore -c ${{ parameters.buildConfiguration }}'
+    workingDirectory: '${{ parameters.workingDirectory }}'  
+
+- task: DotNetCoreCLI@2
+  displayName: Run dotnet test
+  inputs:
+    command: 'test'
+    arguments: '--no-build -c ${{ parameters.buildConfiguration }}'
+    testRunTitle: 'Unit Tests'
+    workingDirectory: '${{ parameters.workingDirectory }}'  
+
+- task: DotNetCoreCLI@2
+  displayName: Run dotnet publish
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: '${{ parameters.workingDirectory }}/${{ parameters.webAppFolder }}'
+    arguments: '--no-restore --no-build -c ${{ parameters.buildConfiguration }} --output $(Build.ArtifactStagingDirectory)'
+    workingDirectory: '${{ parameters.workingDirectory }}'  

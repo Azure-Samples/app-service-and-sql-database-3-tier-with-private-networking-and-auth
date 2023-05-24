@@ -1,0 +1,30 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+    var claimPrincipal = Services.ClaimsPrincipalParser.Parse(Request);
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome @(claimPrincipal?.Identity?.Name ?? string.Empty)</h1>
+    <p>
+        <span>This is an example 3 tier application that leverages private end points and managed identities.</span>
+    </p>
+</div>
+
+<div class="text-center">
+    <p>
+        <span class="text-dark">Name:</span>
+        <span class="text-body">
+            @(claimPrincipal?.Identity?.Name ?? "Not Logged in with Easy Auth")
+        </span>
+    </p>
+</div>
+<div class="text-center">
+    <p>
+        <span class="text-dark">Username:</span>
+        <span class="text-body">
+            @(claimPrincipal?.Claims?.FirstOrDefault(o => o.Type == "preferred_username")?.Value ?? "Not Logged in with Easy Auth")
+        </span>
+    </p>
+</div>
