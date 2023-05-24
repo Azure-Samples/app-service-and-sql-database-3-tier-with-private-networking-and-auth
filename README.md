@@ -42,11 +42,19 @@ This repository is an example of deploying a 3 tier ASP.NET Core application to 
 
 This sample includes the following features:
 
-* Setup an Azure App Registration (Service Principal) ready for GitHub OIDC.
-* Setup an Azure Storage Account for State file management.
-* Setup GitHub repository and environments ready to deploy Terraform with OIDC.
-* Run a Continuous Delivery pipeline for Terraform using OIDC auth for state and deploying resources to Azure.
-* Run a Pull Request workflow with some basic static analysis.
+* Bicep to create a SQL Database
+* Bicep to create an API App Service
+* Bicep to create a UI App Service
+* Bicep to create a VNET and subnets
+* Bicep to create private end points for API App Service and SQL Database
+* Bicep to create VNET integration for API App Service and UI App Service
+* Bicep to create User Assigned Managed Identity and Associated permissions for SQL Database Azure Active Directory Authentication
+* Bicep to create App Registrations for API App Service and UI App Service
+* C# MSAL Code for UI App Service to Authenticate to the API App Service
+* PowerShell for Adding Managed Identity to SQL Database
+* PowerShell for restricting down access for App Registrations
+* Azure DevOps Pipelines for deploying Bicep and Application Code
+* Bicep to create Azure DevOps Self-hosted Agents in Azure Container Instance with VNET integration for private deployments
 
 ## Getting Started
 
