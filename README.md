@@ -6,7 +6,7 @@ languages:
 - yaml
 - aspx-csharp
 name: Deploying a Secure 3 tier application on App Service and SQL Database with ASP.NET Core, Bicep and Azure DevOps
-description: This repository is an example of deploying a 3 tier ASP.NET Core application to Azure App Service and SQL Database using Bicep and Azure DevOps Pipelines. It implements private networking with private end points and authentication on all tiers with Azure Active Directory.
+description: Example of deploying a secure 3 tier ASP.NET Core application to Azure App Service and SQL Database using Bicep and Azure DevOps Pipelines.
 products:
 - azure
 - azure-app-service
