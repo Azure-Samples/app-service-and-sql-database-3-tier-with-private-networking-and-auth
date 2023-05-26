@@ -5,7 +5,7 @@ languages:
 - csharp
 - yaml
 - aspx-csharp
-name: Deploying a Secure 3 tier application on App Service and SQL Database with ASP.NET Core, Bicep and Azure DevOps
+name: Secure 3-tier application on App Service and SQL Database with ASP.NET Core, Bicep and Azure DevOps
 description: Example of deploying a secure 3 tier ASP.NET Core application to Azure App Service and SQL Database using Bicep and Azure DevOps Pipelines.
 products:
 - azure
