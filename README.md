@@ -56,6 +56,11 @@ This sample includes the following features:
 * Azure DevOps Pipelines for deploying Bicep and Application Code
 * Bicep to create Azure DevOps Self-hosted Agents in Azure Container Instance with VNET integration for private deployments
 
+What is missing?
+
+* Front Door and Web Application Firewall
+* Network Security Groups
+
 The following diagram shows the architecture:
 
 ![Architecture Diagram](/lab-docs/3-tier-app.png)
