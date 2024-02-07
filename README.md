@@ -14,7 +14,6 @@ products:
 - azure-private-link
 - azure-virtual-network
 - azure-devops
-- azure-active-directory
 urlFragment: app-service-and-sql-database-3-tier-with-private-networking-and-auth
 ---
 
