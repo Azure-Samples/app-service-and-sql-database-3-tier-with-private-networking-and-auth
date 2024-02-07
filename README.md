@@ -71,7 +71,7 @@ The following diagram shows the architecture:
 
 - Azure CLI: [Download](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli#install-or-update)
 - An Azure Subscription: [Free Account](https://azure.microsoft.com/en-gb/free/search/)
-- A Azure DevOps Organization: [Free Organization](https://aex.dev.azure.com/signup/)
+- An Azure DevOps Organization: [Free Organization](https://aex.dev.azure.com/signup/)
 - Visual Studio Code: [Download](https://code.visualstudio.com/download)
 - Visual Studio Professional or Enterprise: [Download Free Trial](https://visualstudio.microsoft.com/downloads/)
 
